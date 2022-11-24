@@ -3,9 +3,9 @@ from collections import defaultdict
 from typing import Dict, Set, TypeVar
 import networkx as nx
 import matplotlib.pyplot as plt
-# from deque import Deque
 
 V = TypeVar("V")
+
 
 @dataclass
 class Graf:
@@ -35,7 +35,7 @@ class Graf:
         omrezje.add_nodes_from(self.vozlisca())
         omrezje.add_edges_from(self.povezave())
         oznake = {u: oznaka(u) for u in self.vozlisca()}
-        nx.draw_spring(omrezje, labels=oznake)
+        nx.draw_kamada_kawai(omrezje, labels=oznake, node_color="white")
         plt.show()
 
     def _razisci(self, v, oznacena, pripravi, pospravi):
@@ -46,7 +46,12 @@ class Graf:
                 self._razisci(w, oznacena, pripravi, pospravi)
         pospravi(v)
 
-    def dfs(self, pripravi=lambda u: None, pospravi=lambda u: None, zacni_raziskovanje=lambda u: None):
+    def dfs(
+        self,
+        pripravi=lambda u: None,
+        pospravi=lambda u: None,
+        zacni_raziskovanje=lambda u: None,
+    ):
         oznacena = set()
         for v in self.vozlisca():
             if v not in oznacena:
@@ -56,10 +61,13 @@ class Graf:
     def komponente_za_povezanost(self):
         komponente = {}
         stevec_komponent = [0]
+
         def zacni_raziskovanje(v):
             stevec_komponent[0] += 1
+
         def pripravi(v):
             komponente[v] = stevec_komponent[0]
+
         self.dfs(pripravi=pripravi, zacni_raziskovanje=zacni_raziskovanje)
         return komponente
 
@@ -67,9 +75,11 @@ class Graf:
         pred_oznake = {}
         po_oznake = {}
         korak = [1]
+
         def pripravi(v):
             pred_oznake[v] = korak[0]
             korak[0] += 1
+
         def pospravi(v):
             po_oznake[v] = korak[0]
             korak[0] += 1
@@ -87,15 +97,17 @@ class Graf:
                 if w not in oznacena:
                     raziskujemo.append(w)
         return oznacena
-    
+
     def topoloska_ureditev(self):
         sklad = []
+
         def pospravi(v):
             sklad.append(v)
+
         self.dfs(pospravi=pospravi)
         sklad.reverse()
         return sklad
-    
+
     def krepko_povezane_komponente(self):
         obrnjen = self.obrnjen()
         oznacena = set()
@@ -104,25 +116,32 @@ class Graf:
         for u in obrnjen.topoloska_ureditev():
             if u not in oznacena:
                 indeks_komponente += 1
+
                 def pripravi(v):
                     komponente[v] = indeks_komponente
+
                 self._razisci(u, oznacena, pripravi=pripravi, pospravi=lambda u: None)
         return komponente
-    
+
     def kvocientni_graf(self):
         komponente_vozlisc = self.krepko_povezane_komponente()
         vozlisca_komponent = defaultdict(set)
         for vozlisce, komponenta in komponente_vozlisc.items():
             vozlisca_komponent[komponenta].add(vozlisce)
-        imena_komponent = {komponenta: "".join(str(vozlisce) for vozlisce in sorted(vozlisca)) for komponenta, vozlisca in vozlisca_komponent.items()}
+        imena_komponent = {
+            komponenta: "".join(str(vozlisce) for vozlisce in sorted(vozlisca))
+            for komponenta, vozlisca in vozlisca_komponent.items()
+        }
         sosedi_v_kvocientnem = defaultdict(set)
         for u, v in self.povezave():
             komponenta_u = imena_komponent[komponente_vozlisc[u]]
             komponenta_v = imena_komponent[komponente_vozlisc[v]]
             if komponenta_u != komponenta_v:
                 sosedi_v_kvocientnem[komponenta_u].add(komponenta_v)
-        return Graf({u: sosedi_v_kvocientnem[u] for u in imena_komponent.values()}, usmerjen=True)
-            
+        return Graf(
+            {u: sosedi_v_kvocientnem[u] for u in imena_komponent.values()},
+            usmerjen=True,
+        )
 
     def bfs(self, v):
         oznacena = {v}
