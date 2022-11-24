@@ -121,7 +121,7 @@ class Graf:
             komponenta_v = imena_komponent[komponente_vozlisc[v]]
             if komponenta_u != komponenta_v:
                 sosedi_v_kvocientnem[komponenta_u].add(komponenta_v)
-        return Graf({u: sosedi_v_kvocientnem[u] for u in imena_komponent}, usmerjen=True)
+        return Graf({u: sosedi_v_kvocientnem[u] for u in imena_komponent.values()}, usmerjen=True)
             
 
     def bfs(self, v):
