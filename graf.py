@@ -10,14 +10,13 @@ V = TypeVar("V")
 @dataclass
 class Graf:
     sosedi: Dict[V, Set[V]]
-    usmerjen: bool = False
 
     def obrnjen(self):
         sosedi_obrnjenega = defaultdict(set)
         for u, v in self.povezave():
             sosedi_obrnjenega[v].add(u)
         sosedi_obrnjenega = {u: sosedi_obrnjenega[u] for u in self.vozlisca()}
-        return Graf(sosedi_obrnjenega, usmerjen=self.usmerjen)
+        return type(self)(sosedi_obrnjenega)
 
     def povezave(self):
         for u, vs in self.sosedi.items():
@@ -28,10 +27,7 @@ class Graf:
         return self.sosedi.keys()
 
     def narisi(self, oznaka=lambda v: v):
-        if self.usmerjen:
-            omrezje = nx.DiGraph()
-        else:
-            omrezje = nx.Graph()
+        omrezje = nx.Graph()
         omrezje.add_nodes_from(self.vozlisca())
         omrezje.add_edges_from(self.povezave())
         oznake = {u: oznaka(u) for u in self.vozlisca()}
@@ -98,22 +94,46 @@ class Graf:
                     raziskujemo.append(w)
         return oznacena
 
-    def topoloska_ureditev(self):
-        sklad = []
+    def bfs(self, v):
+        oznacena = {v}
+        raziskujemo = [v]
+        while raziskujemo:
+            u = raziskujemo.pop(0)
+            for w in self.sosedi[u]:
+                if w not in oznacena:
+                    raziskujemo.append(w)
+                    oznacena.add(w)
+        return oznacena
 
-        def pospravi(v):
-            sklad.append(v)
+    def razdalje(self, v):
+        razdalje = {v: 0}
+        raziskujemo = [v]
+        while raziskujemo:
+            u = raziskujemo.pop(0)
+            for w in self.sosedi[u]:
+                if w not in razdalje:
+                    raziskujemo.append(w)
+                    razdalje[w] = razdalje[u] + 1
+        return razdalje
 
-        self.dfs(pospravi=pospravi)
-        sklad.reverse()
-        return sklad
+
+@dataclass
+class UsmerjenGraf(Graf):
+    def narisi(self, oznaka=lambda v: v):
+        omrezje = nx.DiGraph()
+        omrezje.add_nodes_from(self.vozlisca())
+        omrezje.add_edges_from(self.povezave())
+        oznake = {u: oznaka(u) for u in self.vozlisca()}
+        nx.draw_kamada_kawai(omrezje, labels=oznake, node_color="white")
+        plt.show()
 
     def krepko_povezane_komponente(self):
         obrnjen = self.obrnjen()
         oznacena = set()
         komponente = {}
         indeks_komponente = 0
-        for u in obrnjen.topoloska_ureditev():
+        _, po_oznake = obrnjen.pred_in_po_oznake()
+        for u in sorted(self.vozlisca(), key=lambda u: po_oznake[u], reverse=True):
             if u not in oznacena:
                 indeks_komponente += 1
 
@@ -138,30 +158,16 @@ class Graf:
             komponenta_v = imena_komponent[komponente_vozlisc[v]]
             if komponenta_u != komponenta_v:
                 sosedi_v_kvocientnem[komponenta_u].add(komponenta_v)
-        return Graf(
-            {u: sosedi_v_kvocientnem[u] for u in imena_komponent.values()},
-            usmerjen=True,
-        )
+        return DAG({u: sosedi_v_kvocientnem[u] for u in imena_komponent.values()})
 
-    def bfs(self, v):
-        oznacena = {v}
-        raziskujemo = [v]
-        while raziskujemo:
-            u = raziskujemo.pop(0)
-            print(u)
-            for w in self.sosedi[u]:
-                if w not in oznacena:
-                    raziskujemo.append(w)
-                    oznacena.add(w)
-        return oznacena
 
-    def razdalje(self, v):
-        razdalje = {v: 0}
-        raziskujemo = [v]
-        while raziskujemo:
-            u = raziskujemo.pop(0)
-            for w in self.sosedi[u]:
-                if w not in razdalje:
-                    raziskujemo.append(w)
-                    razdalje[w] = razdalje[u] + 1
-        return razdalje
+class DAG(UsmerjenGraf):
+    def topoloska_ureditev(self):
+        sklad = []
+
+        def pospravi(v):
+            sklad.append(v)
+
+        self.dfs(pospravi=pospravi)
+        sklad.reverse()
+        return sklad
