@@ -1,15 +1,26 @@
-from dataclasses import dataclass
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Dict, Set, TypeVar
-import networkx as nx
-import matplotlib.pyplot as plt
 
-V = TypeVar("V")
+import matplotlib.pyplot as plt
+import networkx as nx
+
+from disjunktne import DisjunktneMnozice
+
+Val = TypeVar("Val")
 
 
 @dataclass
 class Graf:
-    sosedi: Dict[V, Set[V]]
+    sosedi: Dict[Val, Set[Val]]
+
+    @classmethod
+    def iz_povezav(cls, povezave):
+        sosedi = defaultdict(set)
+        for u, v in povezave:
+            sosedi[u].add(v)
+            sosedi[v].add(u)
+        return cls(sosedi=sosedi)
 
     def obrnjen(self):
         sosedi_obrnjenega = defaultdict(set)
@@ -116,6 +127,17 @@ class Graf:
                     razdalje[w] = razdalje[u] + 1
         return razdalje
 
+
+    def kruskal(self, utezi):
+        komponente = DisjunktneMnozice.singletoni(self.vozlisca())
+        drevo = []
+        vrednost = 0
+        for w, (u, v) in sorted((utezi.get(e, float("inf")), e) for e in self.povezave()):
+            if komponente.poisci(u) != komponente.poisci(v):
+                vrednost += w
+                drevo.append((u, v))
+                komponente.zdruzi(u, v)
+        return vrednost, drevo
 
 @dataclass
 class UsmerjenGraf(Graf):
